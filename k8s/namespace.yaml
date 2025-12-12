@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: disaster-relief-platform
+  labels:
+    name: disaster-relief-platform
+    app.kubernetes.io/name: disaster-relief-platform
+    app.kubernetes.io/instance: disaster-relief-platform
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: kubectl
+
+
+

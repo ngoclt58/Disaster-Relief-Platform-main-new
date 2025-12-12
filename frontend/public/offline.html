@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Disaster Relief Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .offline-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 2rem;
+        }
+        
+        .offline-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 300;
+        }
+        
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .retry-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 1rem;
+        }
+        
+        .retry-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .offline-features {
+            margin-top: 3rem;
+            text-align: left;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .feature-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #ff4444;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-indicator">
+        <div class="status-dot"></div>
+        <span>Offline</span>
+    </div>
+    
+    <div class="offline-container">
+        <div class="offline-icon">📡</div>
+        <h1>You're Offline</h1>
+        <p>
+            It looks like you've lost your internet connection. Don't worry - 
+            you can still access your saved data and continue working. 
+            Your changes will be synced when you're back online.
+        </p>
+        
+        <button class="retry-button" onclick="retryConnection()">
+            Try Again
+        </button>
+        <button class="retry-button" onclick="goToApp()">
+            Continue Offline
+        </button>
+        
+        <div class="offline-features">
+            <h3 style="margin-bottom: 1rem; text-align: center;">Available Offline:</h3>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>View saved needs and tasks</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Create new requests (will sync later)</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Update task status</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>Access inventory data</span>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✓</div>
+                <span>View maps and locations</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        function retryConnection() {
+            retryCount++;
+            
+            if (retryCount > maxRetries) {
+                alert('Unable to connect. Please check your internet connection and try again later.');
+                return;
+            }
+            
+            // Show loading state
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Trying...';
+            button.disabled = true;
+            
+            // Test connection
+            fetch('/api/health', { 
+                method: 'HEAD',
+                cache: 'no-cache'
+            })
+            .then(() => {
+                // Connection restored
+                window.location.reload();
+            })
+            .catch(() => {
+                // Still offline
+                button.textContent = originalText;
+                button.disabled = false;
+                
+                if (retryCount < maxRetries) {
+                    setTimeout(() => {
+                        retryConnection();
+                    }, 2000);
+                } else {
+                    alert('Connection failed. You can continue working offline.');
+                }
+            });
+        }
+        
+        function goToApp() {
+            // Try to navigate to the app
+            if ('serviceWorker' in navigator) {
+                // Check if we have cached data
+                caches.open('static-v1').then(cache => {
+                    cache.match('/').then(response => {
+                        if (response) {
+                            window.location.href = '/';
+                        } else {
+                            alert('App data not available offline. Please try again when connected.');
+                        }
+                    });
+                });
+            } else {
+                window.location.href = '/';
+            }
+        }
+        
+        // Monitor connection status
+        function updateConnectionStatus() {
+            const indicator = document.querySelector('.status-indicator');
+            const dot = document.querySelector('.status-dot');
+            
+            if (navigator.onLine) {
+                dot.style.background = '#44ff44';
+                indicator.querySelector('span').textContent = 'Online';
+                
+                // Auto-reload after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                dot.style.background = '#ff4444';
+                indicator.querySelector('span').textContent = 'Offline';
+            }
+        }
+        
+        // Listen for connection changes
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+        
+        // Initial status check
+        updateConnectionStatus();
+        
+        // Periodic connection check
+        setInterval(() => {
+            if (!navigator.onLine) {
+                fetch('/api/health', { 
+                    method: 'HEAD',
+                    cache: 'no-cache'
+                })
+                .then(() => {
+                    if (!navigator.onLine) {
+                        // Connection restored
+                        updateConnectionStatus();
+                    }
+                })
+                .catch(() => {
+                    // Still offline
+                });
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
+
+
+

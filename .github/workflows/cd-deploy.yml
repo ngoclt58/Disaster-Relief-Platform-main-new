@@ -1,0 +1,78 @@
+name: CD - Helm Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (dev/staging/prod)'
+        required: true
+        default: 'dev'
+      release:
+        description: 'Release name'
+        required: true
+        default: 'disaster-relief-platform'
+      version:
+        description: 'Image tag (commit SHA or semver)'
+        required: true
+        default: ''
+
+env:
+  NAMESPACE: disaster-relief-platform
+  CHART_PATH: helm/disaster-relief-platform
+  RELEASE_NAME: ${{ github.event.inputs.release }}
+  IMAGE_TAG: ${{ github.event.inputs.version }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.13.2'
+
+      - name: Configure Kubeconfig
+        run: |
+          echo "${KUBECONFIG_FILE}" > kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+        env:
+          KUBECONFIG_FILE: ${{ secrets.KUBECONFIG_B64 }}
+
+      - name: Helm dependency update
+        run: |
+          helm dependency update $CHART_PATH
+
+      - name: Select values file per environment
+        id: envsel
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "prod" ]; then
+            echo "file=values.yaml" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            echo "file=values.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "file=values.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Helm upgrade/install
+        run: |
+          helm upgrade --install $RELEASE_NAME $CHART_PATH \
+            --namespace $NAMESPACE --create-namespace \
+            --set backend.image.tag=$IMAGE_TAG \
+            --set frontend.image.tag=$IMAGE_TAG \
+            -f $CHART_PATH/${{ steps.envsel.outputs.file }} \
+            --wait --timeout 10m
+
+
+
+
+

@@ -1,0 +1,115 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-backend-monitor
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+    component: backend
+spec:
+  selector:
+    matchLabels:
+      {{- include "disaster-relief-platform.selectorLabels" . | nindent 6 }}
+      component: backend
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-frontend-monitor
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+    component: frontend
+spec:
+  selector:
+    matchLabels:
+      {{- include "disaster-relief-platform.selectorLabels" . | nindent 6 }}
+      component: frontend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-rules
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: disaster-relief-platform
+      rules:
+        - alert: DisasterReliefPlatformDown
+          expr: up{job="{{ include "disaster-relief-platform.fullname" . }}-backend"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Disaster Relief Platform backend is down"
+            description: "The backend service has been down for more than 1 minute."
+        - alert: DisasterReliefPlatformHighErrorRate
+          expr: rate(http_requests_total{job="{{ include "disaster-relief-platform.fullname" . }}-backend",status=~"5.."}[5m]) > 0.1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate in Disaster Relief Platform"
+            description: "The error rate is {{ $value }} errors per second."
+        - alert: DisasterReliefPlatformHighResponseTime
+          expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="{{ include "disaster-relief-platform.fullname" . }}-backend"}[5m])) > 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High response time in Disaster Relief Platform"
+            description: "The 95th percentile response time is {{ $value }} seconds."
+        - alert: DisasterReliefPlatformHighMemoryUsage
+          expr: (container_memory_usage_bytes{job="{{ include "disaster-relief-platform.fullname" . }}-backend"} / container_spec_memory_limit_bytes{job="{{ include "disaster-relief-platform.fullname" . }}-backend"}) > 0.8
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage in Disaster Relief Platform"
+            description: "Memory usage is {{ $value }}% of the limit."
+        - alert: DisasterReliefPlatformHighCPUUsage
+          expr: (rate(container_cpu_usage_seconds_total{job="{{ include "disaster-relief-platform.fullname" . }}-backend"}[5m]) / container_spec_cpu_quota{job="{{ include "disaster-relief-platform.fullname" . }}-backend"}) > 0.8
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage in Disaster Relief Platform"
+            description: "CPU usage is {{ $value }}% of the limit."
+        - alert: DisasterReliefPlatformDatabaseDown
+          expr: up{job="{{ include "disaster-relief-platform.fullname" . }}-postgresql"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Disaster Relief Platform database is down"
+            description: "The PostgreSQL database has been down for more than 1 minute."
+        - alert: DisasterReliefPlatformRedisDown
+          expr: up{job="{{ include "disaster-relief-platform.fullname" . }}-redis"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Disaster Relief Platform Redis is down"
+            description: "The Redis cache has been down for more than 1 minute."
+        - alert: DisasterReliefPlatformMinIODown
+          expr: up{job="{{ include "disaster-relief-platform.fullname" . }}-minio"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Disaster Relief Platform MinIO is down"
+            description: "The MinIO storage has been down for more than 1 minute."
+{{- end }}
+
+
+

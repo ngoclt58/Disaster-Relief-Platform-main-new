@@ -1,0 +1,15 @@
+apiVersion: 1
+
+providers:
+  - name: 'disaster-relief-dashboards'
+    orgId: 1
+    folder: 'Disaster Relief'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+
+
+

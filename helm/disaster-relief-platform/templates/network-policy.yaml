@@ -1,0 +1,180 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-network-policy
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "disaster-relief-platform.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  {{- if .Values.networkPolicy.ingress.enabled }}
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: {{ .Release.Namespace }}
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9000
+  {{- end }}
+  {{- if .Values.networkPolicy.egress.enabled }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: {{ .Release.Namespace }}
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9000
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+  {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-backend-network-policy
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+    component: backend
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "disaster-relief-platform.selectorLabels" . | nindent 6 }}
+      component: backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: {{ .Release.Namespace }}
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: minio
+      ports:
+        - protocol: TCP
+          port: 9000
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "disaster-relief-platform.fullname" . }}-frontend-network-policy
+  labels:
+    {{- include "disaster-relief-platform.labels" . | nindent 4 }}
+    component: frontend
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "disaster-relief-platform.selectorLabels" . | nindent 6 }}
+      component: frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: {{ .Release.Namespace }}
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: ingress
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "disaster-relief-platform.selectorLabels" . | nindent 14 }}
+              component: backend
+      ports:
+        - protocol: TCP
+          port: 8080
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+{{- end }}
+
+
+

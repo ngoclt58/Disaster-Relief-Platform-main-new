@@ -1,0 +1,55 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  labels:
+    app.kubernetes.io/name: disaster-relief-platform
+    app.kubernetes.io/instance: disaster-relief-platform
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@disaster-relief.local
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: disaster-relief-platform
+    app.kubernetes.io/instance: disaster-relief-platform
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@disaster-relief.local
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: disaster-relief-tls
+  namespace: disaster-relief-platform
+  labels:
+    app.kubernetes.io/name: disaster-relief-platform
+    app.kubernetes.io/instance: disaster-relief-platform
+spec:
+  secretName: disaster-relief-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - disaster-relief.local
+  commonName: disaster-relief.local
+
+
+

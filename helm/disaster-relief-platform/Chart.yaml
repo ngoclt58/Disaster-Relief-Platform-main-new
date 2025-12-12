@@ -1,0 +1,54 @@
+apiVersion: v2
+name: disaster-relief-platform
+description: A comprehensive disaster relief platform for coordinating emergency response efforts
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://disaster-relief.local
+sources:
+  - https://github.com/disaster-relief/platform
+maintainers:
+  - name: Disaster Relief Team
+    email: team@disaster-relief.local
+keywords:
+  - disaster-relief
+  - emergency-response
+  - coordination
+  - management
+  - kubernetes
+dependencies:
+  - name: postgresql
+    version: 12.1.2
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: 17.3.7
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: minio
+    version: 12.1.3
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled
+  - name: nginx-ingress
+    version: 4.4.2
+    repository: https://kubernetes.github.io/ingress-nginx
+    condition: ingress.enabled
+  - name: cert-manager
+    version: v1.13.0
+    repository: https://charts.jetstack.io
+    condition: certManager.enabled
+  - name: prometheus
+    version: 25.8.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: monitoring.prometheus.enabled
+  - name: grafana
+    version: 6.58.0
+    repository: https://grafana.github.io/helm-charts
+    condition: monitoring.grafana.enabled
+  - name: external-secrets
+    version: 0.9.11
+    repository: https://charts.external-secrets.io
+    condition: externalSecrets.enabled
+
+
+

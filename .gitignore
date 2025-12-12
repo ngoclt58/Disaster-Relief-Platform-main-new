@@ -1,0 +1,65 @@
+# Maven
+backend/target/
+backend/pom.xml.tag
+backend/pom.xml.releaseBackup
+backend/pom.xml.versionsBackup
+backend/pom.xml.next
+backend/release.properties
+backend/dependency-reduced-pom.xml
+backend/buildNumber.properties
+backend/.mvn/timing.properties
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Node
+frontend/node_modules/
+frontend/package-lock.json
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage
+frontend/build
+frontend/dist
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Database
+*.db
+*.sqlite
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test files
+backend/target/test-classes/
+backend/target/surefire-reports/
+
+# Scripts (optional - uncomment if you don't want to track these)
+# *.sql
+# *.sh
+# *.bat
+# *.ps1
+
+
