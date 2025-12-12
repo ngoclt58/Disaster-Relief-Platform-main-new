@@ -149,7 +149,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) return;
+      // Ignore if user is typing in input fields
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || 
+                      target.tagName === 'TEXTAREA' || 
+                      target.contentEditable === 'true' ||
+                      target.isContentEditable;
+      
+      if (e.ctrlKey || e.metaKey || isTyping) return;
       
       const key = e.key.toUpperCase();
       const item = allMenuItems.find(item => item.shortcut === key);

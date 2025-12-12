@@ -12,8 +12,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Autowired
     private RateLimitInterceptor rateLimitInterceptor;
 
+    @Autowired
+    private ApiLoggingInterceptor apiLoggingInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        // Add API logging interceptor first (runs before rate limiting)
+        registry.addInterceptor(apiLoggingInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/health", "/api/actuator/**");
+        
+        // Add rate limiting interceptor
         registry.addInterceptor(rateLimitInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns("/api/health", "/api/actuator/**");

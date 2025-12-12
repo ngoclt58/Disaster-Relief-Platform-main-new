@@ -42,6 +42,9 @@ logs/
 *.temp
 *.bak
 *.backup
+*.rar
+*.zip
+frontend/node_modules.rar
 
 # Database
 *.db

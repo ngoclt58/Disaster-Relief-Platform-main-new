@@ -13,7 +13,7 @@ const MapPage: React.FC = () => {
   const map = useRef<maplibregl.Map | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false to prevent initial blocking
   const [filters, setFilters] = useState({
     severity: 'all',
     type: 'all',
@@ -305,10 +305,20 @@ const MapPage: React.FC = () => {
 
   // Fetch requests data
   useEffect(() => {
+    console.log('[MapPage] useEffect triggered with filters:', filters, 'bbox:', bbox);
     fetchRequests();
   }, [filters, bbox]);
 
+  // Force initial fetch on component mount
+  useEffect(() => {
+    console.log('[MapPage] Component mounted, forcing initial fetch');
+    fetchRequests();
+  }, []);
+
   const fetchRequests = async () => {
+    console.log('[MapPage] fetchRequests called!');
+    console.log('[MapPage] Current loading state:', loading);
+    
     // Prevent overlapping calls
     if (loading) {
       console.warn('Requests fetch already in progress, skipping duplicate call');
@@ -316,6 +326,7 @@ const MapPage: React.FC = () => {
     }
     
     try {
+      console.log('[MapPage] Setting loading to true');
       setLoading(true);
       const params: any = {};
       
@@ -339,11 +350,27 @@ const MapPage: React.FC = () => {
         // bbox as "minLng,minLat,maxLng,maxLat"
         params.bbox = bbox.join(',');
       }
+      
+      console.log('[MapPage] Fetching requests with params:', params);
+      console.log('[MapPage] About to call apiService.getRequests...');
+      
       const data = await apiService.getRequests(params);
+      
+      console.log('[MapPage] API call successful!');
+      console.log('[MapPage] Received requests data:', data);
+      console.log('[MapPage] Requests count:', data?.content?.length || 0);
       setRequests(data.content || []);
     } catch (error) {
-      console.error('Failed to fetch requests:', error);
+      console.error('[MapPage] *** API CALL FAILED ***');
+      console.error('[MapPage] Failed to fetch requests:', error);
+      console.error('[MapPage] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      console.error('[MapPage] Error type:', typeof error);
+      console.error('[MapPage] Error constructor:', error?.constructor?.name);
     } finally {
+      console.log('[MapPage] Setting loading to false');
       setLoading(false);
     }
   };
@@ -459,23 +486,23 @@ const MapPage: React.FC = () => {
     setVisibleCount(features.length);
   }, [isMapLoaded, requests, showDemoData, filters.shelter, filters.type, filters.status, filters.severity, bbox]);
 
-  // Set up real-time updates
-  useEffect(() => {
-    const unsubscribe = realtimeService.subscribe('needs.created' as RealtimeEventType, (event) => {
-      console.log('New need created:', event.data);
-      fetchRequests(); // Refresh requests
-    });
+  // Set up real-time updates - TEMPORARILY DISABLED
+  // useEffect(() => {
+  //   const unsubscribe = realtimeService.subscribe('needs.created' as RealtimeEventType, (event) => {
+  //     console.log('New need created:', event.data);
+  //     fetchRequests(); // Refresh requests
+  //   });
     
-    const unsubscribeUpdated = realtimeService.subscribe('needs.updated' as RealtimeEventType, (event) => {
-      console.log('Need updated:', event.data);
-      fetchRequests(); // Refresh requests
-    });
+  //   const unsubscribeUpdated = realtimeService.subscribe('needs.updated' as RealtimeEventType, (event) => {
+  //     console.log('Need updated:', event.data);
+  //     fetchRequests(); // Refresh requests
+  //   });
     
-    return () => {
-      unsubscribe();
-      unsubscribeUpdated();
-    };
-  }, []);
+  //   return () => {
+  //     unsubscribe();
+  //     unsubscribeUpdated();
+  //   };
+  // }, []);
 
   const getSeverityColor = (severity: number) => {
     switch (severity) {

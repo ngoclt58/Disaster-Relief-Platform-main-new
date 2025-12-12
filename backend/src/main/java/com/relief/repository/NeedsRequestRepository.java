@@ -69,6 +69,9 @@ public interface NeedsRequestRepository extends JpaRepository<NeedsRequest, UUID
 
     @Query("SELECT COUNT(nr) FROM NeedsRequest nr WHERE nr.status = :status")
     long countByStatus(@Param("status") String status);
+    
+    @Query("SELECT COUNT(nr) FROM NeedsRequest nr WHERE nr.status IN :statuses")
+    long countByStatusIn(@Param("statuses") List<String> statuses);
 
     @Query("SELECT COUNT(nr) FROM NeedsRequest nr WHERE nr.type = :type AND nr.status = :status")
     long countByTypeAndStatus(@Param("type") String type, @Param("status") String status);

@@ -28,6 +28,7 @@ public class NeedsRequest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "household_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Household household;
 
     @Column(nullable = false)
@@ -55,10 +56,12 @@ public class NeedsRequest {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_assignee_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User currentAssignee;
 
     @CreatedDate

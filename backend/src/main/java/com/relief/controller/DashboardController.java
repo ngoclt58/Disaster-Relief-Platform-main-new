@@ -42,9 +42,10 @@ public class DashboardController {
             LocalDateTime todayEnd = LocalDate.now().atTime(23, 59, 59);
             
             // Active requests (needs with status "new", "assigned", or "in_progress")
-            long activeRequests = needsRequestRepository.countByStatus("new") 
-                + needsRequestRepository.countByStatus("assigned")
-                + needsRequestRepository.countByStatus("in_progress");
+            List<String> activeStatuses = List.of("new", "assigned", "in_progress");
+            long activeRequests = needsRequestRepository.countByStatusIn(activeStatuses);
+            
+            log.info("Dashboard stats - Active requests: {} (statuses: {})", activeRequests, activeStatuses);
             
             // Completed tasks today
             long completedToday = taskRepository.countByStatusAndUpdatedAtBetween("delivered", todayStart, todayEnd);

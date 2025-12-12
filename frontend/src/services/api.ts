@@ -207,11 +207,26 @@ class ApiService {
       }
     });
     
+    const url = `${API_BASE_URL}/requests?${params}`;
+    console.log('[ApiService] GET /requests - URL:', url);
+    console.log('[ApiService] GET /requests - Headers:', this.getHeaders());
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/requests?${params}`, {
+      const response = await fetch(url, {
         headers: this.getHeaders()
       });
+      console.log('[ApiService] GET /requests - Response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[ApiService] GET /requests - Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
       const data = await this.handleResponse(response);
+      console.log('[ApiService] GET /requests - Response data:', data);
+      console.log('[ApiService] GET /requests - Content length:', (data as any)?.content?.length || 0);
+      
       // cache in idb
       try {
         const { putAll } = await import('./idb');
@@ -221,10 +236,17 @@ class ApiService {
       } catch {}
       return data;
     } catch (e) {
+      console.error('[ApiService] GET /requests - Exception:', e);
       // offline fallback
-      const { getAll } = await import('./idb');
-      const cached = await getAll<any>('requests' as any);
-      return { content: cached } as any;
+      try {
+        const { getAll } = await import('./idb');
+        const cached = await getAll<any>('requests' as any);
+        console.log('[ApiService] GET /requests - Using cached data:', cached?.length || 0);
+        return { content: cached } as any;
+      } catch (cacheError) {
+        console.error('[ApiService] GET /requests - Cache error:', cacheError);
+        throw e;
+      }
     }
   }
 

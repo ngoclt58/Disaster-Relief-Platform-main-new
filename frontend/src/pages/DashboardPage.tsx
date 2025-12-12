@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { apiService } from '../services/api';
-import { realtimeService, RealtimeEventType } from '../services/realtimeService';
+
 import NeedsForm from '../components/NeedsForm';
 import { 
   MapPin, 
@@ -26,30 +26,34 @@ const DashboardPage: React.FC = () => {
     responseTime: '0h'
   });
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false to prevent initial blocking
   const [showNeedsForm, setShowNeedsForm] = useState(false);
 
   useEffect(() => {
+    console.log('[DashboardPage] Component mounted, calling fetchDashboardData');
     fetchDashboardData();
     
-    // Set up real-time updates
-    const unsubscribe = realtimeService.subscribe('needs.created' as RealtimeEventType, (event) => {
-      console.log('New need created:', event.data);
-      fetchDashboardData(); // Refresh dashboard data
-    });
+    // Set up real-time updates - TEMPORARILY DISABLED
+    // const unsubscribe = realtimeService.subscribe('needs.created' as RealtimeEventType, (event) => {
+    //   console.log('New need created:', event.data);
+    //   fetchDashboardData(); // Refresh dashboard data
+    // });
     
-    const unsubscribeUpdated = realtimeService.subscribe('needs.updated' as RealtimeEventType, (event) => {
-      console.log('Need updated:', event.data);
-      fetchDashboardData(); // Refresh dashboard data
-    });
+    // const unsubscribeUpdated = realtimeService.subscribe('needs.updated' as RealtimeEventType, (event) => {
+    //   console.log('Need updated:', event.data);
+    //   fetchDashboardData(); // Refresh dashboard data
+    // });
     
-    return () => {
-      unsubscribe();
-      unsubscribeUpdated();
-    };
+    // return () => {
+    //   unsubscribe();
+    //   unsubscribeUpdated();
+    // };
   }, []);
 
   const fetchDashboardData = async () => {
+    console.log('[DashboardPage] fetchDashboardData called!');
+    console.log('[DashboardPage] Current loading state:', loading);
+    
     // Prevent overlapping calls
     if (loading) {
       console.warn('Dashboard data fetch already in progress, skipping duplicate call');
@@ -57,6 +61,7 @@ const DashboardPage: React.FC = () => {
     }
     
     try {
+      console.log('[DashboardPage] Setting loading to true');
       setLoading(true);
       
       // Fetch dashboard stats and recent requests in parallel
@@ -72,7 +77,13 @@ const DashboardPage: React.FC = () => {
           activeHelpers: 0,
           responseTime: '0h'
         })),
-        apiService.getRequests({ page: 0, size: 5 }).catch(() => ({ content: [], totalElements: 0 }))
+        apiService.getRequests({ page: 0, size: 5 }).then((data) => {
+          console.log('[DashboardPage] Successfully fetched requests:', data);
+          return data;
+        }).catch((err) => {
+          console.error('[DashboardPage] Failed to fetch recent requests:', err);
+          return { content: [], totalElements: 0 };
+        })
       ]);
       
       setRecentRequests(requestsData.content || []);
@@ -94,6 +105,7 @@ const DashboardPage: React.FC = () => {
         responseTime: '0h'
       });
     } finally {
+      console.log('[DashboardPage] Setting loading to false');
       setLoading(false);
     }
   };
@@ -105,6 +117,25 @@ const DashboardPage: React.FC = () => {
       case 3: return 'bg-yellow-100 text-yellow-800';
       case 2: return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const updateRequestStatus = async (requestId: string, newStatus: string) => {
+    try {
+      console.log(`[DashboardPage] Updating request ${requestId} status to ${newStatus}`);
+      
+      // Call API to update status
+      await apiService.patch(`/requests/${requestId}/status`, { status: newStatus });
+      
+      console.log(`[DashboardPage] Successfully updated request ${requestId} status to ${newStatus}`);
+      
+      // Refresh the dashboard data to show updated status
+      await fetchDashboardData();
+      
+    } catch (error) {
+      console.error(`[DashboardPage] Failed to update request ${requestId} status:`, error);
+      // You could add a toast notification here for better UX
+      alert(`Failed to update request status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -213,6 +244,17 @@ const DashboardPage: React.FC = () => {
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(request.severity || 3)}`}>
                               Severity {request.severity || 3}
                             </span>
+                            <select 
+                              value={request.status || 'new'}
+                              onChange={(e) => updateRequestStatus(request.id, e.target.value)}
+                              className="text-xs border rounded px-2 py-1"
+                            >
+                              <option value="new">New</option>
+                              <option value="assigned">Assigned</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
                             <span className="text-sm text-gray-500">
                               {new Date(request.createdAt).toLocaleTimeString()}
                             </span>
