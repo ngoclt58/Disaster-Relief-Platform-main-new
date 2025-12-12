@@ -82,6 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         { name: 'Map', href: '/map', icon: MapIcon, description: 'Interactive map view', shortcut: 'M' },
         { name: 'Tasks', href: '/tasks', icon: ClipboardListIcon, description: 'Task management', shortcut: 'T' },
         { name: 'Inventory', href: '/inventory', icon: PackageIcon, description: 'Resource inventory', shortcut: 'I' },
+        { name: 'Shelters', href: '/shelters', icon: BuildingIcon, description: 'Emergency shelter management', shortcut: 'S' },
       ]
     },
     {

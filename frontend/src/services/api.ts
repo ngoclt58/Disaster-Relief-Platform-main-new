@@ -2863,10 +2863,100 @@ class ApiService {
     return this.handleResponse(response);
   }
 
-  async findNearbyShelters(latitude: number, longitude: number, radiusKm: number = 50) {
+  async getAllShelters(page = 0, size = 20, sortBy = 'name', sortDir = 'asc', status?: string, search?: string) {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('size', size.toString());
+    params.append('sortBy', sortBy);
+    params.append('sortDir', sortDir);
+    if (status) params.append('status', status);
+    if (search) params.append('search', search);
+    
+    const response = await fetch(`${API_BASE_URL}/shelters?${params}`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async getShelterById(id: string) {
+    const response = await fetch(`${API_BASE_URL}/shelters/${id}`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async getAvailableShelters() {
+    const response = await fetch(`${API_BASE_URL}/shelters/available`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async createShelter(shelterData: any) {
+    const response = await fetch(`${API_BASE_URL}/shelters`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(shelterData)
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateShelter(id: string, shelterData: any) {
+    const response = await fetch(`${API_BASE_URL}/shelters/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(shelterData)
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateShelterOccupancy(id: string, occupancy: number) {
+    const response = await fetch(`${API_BASE_URL}/shelters/${id}/occupancy?occupancy=${occupancy}`, {
+      method: 'PATCH',
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async deleteShelter(id: string) {
+    const response = await fetch(`${API_BASE_URL}/shelters/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async getShelterStatistics() {
+    const response = await fetch(`${API_BASE_URL}/shelters/statistics`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async findNearbyShelters(latitude: number, longitude: number, limit: number = 10) {
+    const params = new URLSearchParams();
+    params.append('latitude', latitude.toString());
+    params.append('longitude', longitude.toString());
+    params.append('limit', limit.toString());
+    
+    const response = await fetch(`${API_BASE_URL}/shelters/nearby?${params}`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  async getSheltersByStatus(status: string) {
+    const response = await fetch(`${API_BASE_URL}/shelters/status/${status}`, {
+      headers: this.getHeaders()
+    });
+    return this.handleResponse(response);
+  }
+
+  // Legacy method for backward compatibility
+  async findNearbySheltersLegacy(latitude: number, longitude: number, radiusKm: number = 50) {
     // Use needs requests with type "Shelter" as a fallback, or government API
     try {
-      const shelters = await this.getShelters(undefined, latitude, longitude);
+      const shelters = await this.findNearbyShelters(latitude, longitude, 10);
       return shelters;
     } catch (error) {
       // Fallback: search for needs requests with type "Shelter"

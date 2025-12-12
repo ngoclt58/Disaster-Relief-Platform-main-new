@@ -13,6 +13,7 @@ const MapPage: React.FC = () => {
   const map = useRef<maplibregl.Map | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
+  const [shelters, setShelters] = useState<any[]>([]);
   const [loading, setLoading] = useState(false); // Changed to false to prevent initial blocking
   const [filters, setFilters] = useState({
     severity: 'all',
@@ -306,14 +307,81 @@ const MapPage: React.FC = () => {
   // Fetch requests data
   useEffect(() => {
     console.log('[MapPage] useEffect triggered with filters:', filters, 'bbox:', bbox);
-    fetchRequests();
+    if (filters.shelter) {
+      fetchShelters();
+    } else {
+      fetchRequests();
+    }
   }, [filters, bbox]);
 
   // Force initial fetch on component mount
   useEffect(() => {
     console.log('[MapPage] Component mounted, forcing initial fetch');
-    fetchRequests();
+    if (filters.shelter) {
+      fetchShelters();
+    } else {
+      fetchRequests();
+    }
   }, []);
+
+  const fetchShelters = async () => {
+    console.log('[MapPage] fetchShelters called!');
+    
+    if (loading) {
+      console.warn('Shelters fetch already in progress, skipping duplicate call');
+      return;
+    }
+    
+    try {
+      console.log('[MapPage] Setting loading to true for shelters');
+      setLoading(true);
+      
+      console.log('[MapPage] Fetching shelters from API...');
+      const data = await apiService.get('/shelters?size=100');
+      
+      console.log('[MapPage] Shelters API call successful!');
+      console.log('[MapPage] Received shelters data:', data);
+      console.log('[MapPage] Shelters count:', data?.content?.length || 0);
+      
+      // Convert shelters to request-like format for map display
+      const shelterRequests = (data.content || []).map((shelter: any) => ({
+        id: shelter.id,
+        type: 'Shelter',
+        category: 'Shelter',
+        status: shelter.status === 'ACTIVE' ? 'OPEN' : 'CLOSED',
+        severity: shelter.status === 'FULL' ? 5 : 3,
+        description: `${shelter.name} - ${shelter.currentOccupancy}/${shelter.capacity} occupied`,
+        address: shelter.address,
+        latitude: shelter.latitude,
+        longitude: shelter.longitude,
+        shelterData: shelter // Keep original shelter data
+      }));
+      
+      console.log('[MapPage] Converted shelter requests:', shelterRequests);
+      setRequests(shelterRequests);
+      setShelters(data.content || []);
+      
+      // Center map on Vietnam if we have Vietnamese shelters
+      if (shelterRequests.length > 0 && map.current) {
+        const firstShelter = shelterRequests[0];
+        if (firstShelter.latitude && firstShelter.longitude) {
+          map.current.flyTo({
+            center: [firstShelter.longitude, firstShelter.latitude],
+            zoom: 10
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('[MapPage] *** SHELTERS API CALL FAILED ***');
+      console.error('[MapPage] Failed to fetch shelters:', error);
+      setRequests([]);
+      setShelters([]);
+    } finally {
+      console.log('[MapPage] Setting loading to false for shelters');
+      setLoading(false);
+    }
+  };
 
   const fetchRequests = async () => {
     console.log('[MapPage] fetchRequests called!');
@@ -484,7 +552,7 @@ const MapPage: React.FC = () => {
       src.setData(data as any);
     }
     setVisibleCount(features.length);
-  }, [isMapLoaded, requests, showDemoData, filters.shelter, filters.type, filters.status, filters.severity, bbox]);
+  }, [isMapLoaded, requests, shelters, showDemoData, filters.shelter, filters.type, filters.status, filters.severity, bbox]);
 
   // Set up real-time updates - TEMPORARILY DISABLED
   // useEffect(() => {

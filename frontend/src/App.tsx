@@ -30,6 +30,7 @@ import RealtimeIntelligenceDashboard from './pages/RealtimeIntelligenceDashboard
 import SecurityDashboard from './pages/SecurityDashboard';
 import AIDashboard from './pages/AIDashboard';
 import OptimizationDashboard from './pages/OptimizationDashboard';
+import ShelterManagement from './pages/ShelterManagement';
 import OfflineBanner from './components/OfflineBanner';
 import SyncIndicator from './components/SyncIndicator';
 
@@ -124,6 +125,11 @@ function App() {
           <Route path="/inventory" element={
             <RouteGuard requiredPermissions={['inventory:read']}>
               <InventoryPage />
+            </RouteGuard>
+          } />
+          <Route path="/shelters" element={
+            <RouteGuard requiredPermissions={['shelter:read']}>
+              <ShelterManagement />
             </RouteGuard>
           } />
           <Route path="/profile" element={
