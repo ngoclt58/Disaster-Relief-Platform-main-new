@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Inventory API</title>
+</head>
+<body>
+    <h1>Inventory API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Test hubs
+                const hubsResponse = await fetch('http://localhost:8080/api/inventory/hubs');
+                const hubs = await hubsResponse.json();
+                results.innerHTML += `<h3>Hubs (${hubs.length}):</h3>`;
+                hubs.forEach(hub => {
+                    results.innerHTML += `<p>- ${hub.name} (${hub.address})</p>`;
+                });
+                
+                // Test items
+                const itemsResponse = await fetch('http://localhost:8080/api/inventory/items');
+                const items = await itemsResponse.json();
+                results.innerHTML += `<h3>Items (${items.length}):</h3>`;
+                items.slice(0, 5).forEach(item => {
+                    results.innerHTML += `<p>- ${item.name} (${item.code})</p>`;
+                });
+                
+                // Test stock
+                const stockResponse = await fetch('http://localhost:8080/api/inventory/stock');
+                const stock = await stockResponse.json();
+                results.innerHTML += `<h3>Stock (${stock.length}):</h3>`;
+                
+                const withHub = stock.filter(s => s.hub).length;
+                const withItem = stock.filter(s => s.item).length;
+                const withBoth = stock.filter(s => s.hub && s.item).length;
+                
+                results.innerHTML += `<p>Total: ${stock.length}, With Hub: ${withHub}, With Item: ${withItem}, With Both: ${withBoth}</p>`;
+                
+                if (stock.length > 0) {
+                    const sample = stock[0];
+                    results.innerHTML += `<h4>Sample Stock:</h4>`;
+                    results.innerHTML += `<p>Hub: ${sample.hub ? sample.hub.name : 'N/A'}</p>`;
+                    results.innerHTML += `<p>Item: ${sample.item ? sample.item.name : 'N/A'}</p>`;
+                    results.innerHTML += `<p>Available: ${sample.qtyAvailable}, Reserved: ${sample.qtyReserved}</p>`;
+                }
+                
+            } catch (error) {
+                results.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        testAPI();
+    </script>
+</body>
+</html>

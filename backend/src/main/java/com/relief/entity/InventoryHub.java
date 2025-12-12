@@ -1,5 +1,7 @@
 package com.relief.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,6 +21,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class InventoryHub {
 
     @Id
@@ -31,6 +34,7 @@ public class InventoryHub {
     private String address;
 
     @Column(name = "geom_point", columnDefinition = "geometry(Point, 4326)")
+    @JsonIgnore
     private Point geomPoint;
 
     private Integer capacity;
