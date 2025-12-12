@@ -299,49 +299,63 @@ const MapPage: React.FC = () => {
   // Initialize shelter filter from URL params
   useEffect(() => {
     const shelterParam = searchParams.get('shelter');
+    console.log('🔗 [MapPage] URL param shelter =', shelterParam);
+    console.log('🔗 [MapPage] Current filters.shelter =', filters.shelter);
     if (shelterParam === 'true' && !filters.shelter) {
+      console.log('🔗 [MapPage] Setting shelter filter to true from URL param');
       setFilters(prev => ({ ...prev, shelter: true }));
+      setShowDemoData(false); // Show real data when in shelter mode
     }
   }, [searchParams]);
 
   // Fetch requests data
   useEffect(() => {
-    console.log('[MapPage] useEffect triggered with filters:', filters, 'bbox:', bbox);
+    console.log('🔄 [MapPage] useEffect triggered with filters:', filters, 'bbox:', bbox);
+    console.log('🔄 [MapPage] filters.shelter =', filters.shelter);
     if (filters.shelter) {
+      console.log('🔄 [MapPage] Shelter mode detected, setting showDemoData=false and calling fetchShelters');
+      setShowDemoData(false); // Always show real data in shelter mode
       fetchShelters();
     } else {
+      console.log('🔄 [MapPage] Normal mode, calling fetchRequests');
       fetchRequests();
     }
   }, [filters, bbox]);
 
   // Force initial fetch on component mount
   useEffect(() => {
-    console.log('[MapPage] Component mounted, forcing initial fetch');
+    console.log('🚀 [MapPage] Component mounted, forcing initial fetch');
+    console.log('🚀 [MapPage] Initial filters.shelter =', filters.shelter);
     if (filters.shelter) {
+      console.log('🚀 [MapPage] Initial shelter mode, calling fetchShelters');
       fetchShelters();
     } else {
+      console.log('🚀 [MapPage] Initial normal mode, calling fetchRequests');
       fetchRequests();
     }
   }, []);
 
   const fetchShelters = async () => {
-    console.log('[MapPage] fetchShelters called!');
+    console.log('🏠 [MapPage] fetchShelters called!');
+    console.log('🏠 [MapPage] Current filters:', filters);
+    console.log('🏠 [MapPage] Current loading state:', loading);
     
     if (loading) {
-      console.warn('Shelters fetch already in progress, skipping duplicate call');
+      console.warn('🏠 [MapPage] Shelters fetch already in progress, skipping duplicate call');
       return;
     }
     
     try {
-      console.log('[MapPage] Setting loading to true for shelters');
+      console.log('🏠 [MapPage] Setting loading to true for shelters');
       setLoading(true);
       
-      console.log('[MapPage] Fetching shelters from API...');
+      console.log('🏠 [MapPage] About to call apiService.get("/shelters?size=100")...');
       const data = await apiService.get('/shelters?size=100');
       
-      console.log('[MapPage] Shelters API call successful!');
-      console.log('[MapPage] Received shelters data:', data);
-      console.log('[MapPage] Shelters count:', data?.content?.length || 0);
+      console.log('🏠 [MapPage] ✅ Shelters API call successful!');
+      console.log('🏠 [MapPage] Received shelters data:', data);
+      console.log('🏠 [MapPage] Shelters count:', data?.content?.length || 0);
+      console.log('🏠 [MapPage] First shelter:', data?.content?.[0]);
       
       // Convert shelters to request-like format for map display
       const shelterRequests = (data.content || []).map((shelter: any) => ({
@@ -357,7 +371,10 @@ const MapPage: React.FC = () => {
         shelterData: shelter // Keep original shelter data
       }));
       
-      console.log('[MapPage] Converted shelter requests:', shelterRequests);
+      console.log('🏠 [MapPage] Converted shelter requests:', shelterRequests);
+      console.log('🏠 [MapPage] Setting requests state with', shelterRequests.length, 'shelters');
+      console.log('🏠 [MapPage] Setting shelters state with', data.content?.length || 0, 'shelters');
+      
       setRequests(shelterRequests);
       setShelters(data.content || []);
       
@@ -373,12 +390,16 @@ const MapPage: React.FC = () => {
       }
       
     } catch (error) {
-      console.error('[MapPage] *** SHELTERS API CALL FAILED ***');
-      console.error('[MapPage] Failed to fetch shelters:', error);
+      console.error('🏠 [MapPage] ❌ *** SHELTERS API CALL FAILED ***');
+      console.error('🏠 [MapPage] Failed to fetch shelters:', error);
+      console.error('🏠 [MapPage] Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       setRequests([]);
       setShelters([]);
     } finally {
-      console.log('[MapPage] Setting loading to false for shelters');
+      console.log('🏠 [MapPage] Setting loading to false for shelters');
       setLoading(false);
     }
   };
@@ -467,31 +488,58 @@ const MapPage: React.FC = () => {
     if (bbox) {
       const [minLng, minLat, maxLng, maxLat] = bbox;
       filteredRequests = filteredRequests.filter((r: any) => {
-        const coords = r.location?.coordinates;
-        if (!coords || coords.length < 2) return false;
-        const [lng, lat] = coords;
+        // Handle both coordinate formats
+        let lng, lat;
+        if (r.location?.coordinates && r.location.coordinates.length >= 2) {
+          [lng, lat] = r.location.coordinates;
+        } else if (r.latitude != null && r.longitude != null) {
+          lng = parseFloat(r.longitude);
+          lat = parseFloat(r.latitude);
+        } else {
+          return false;
+        }
         return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
       });
     }
     
     // Use real data if available, otherwise show demo markers
     const realFeatures = filteredRequests
-      .filter((r: any) => r.location?.coordinates)
-      .map((r: any) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [r.location.coordinates[0], r.location.coordinates[1]]
-        },
-        properties: {
-          id: r.id,
-          category: r.category || r.type,
-          severity: r.severity,
-          status: r.status,
-          description: r.description,
-          address: r.address
+      .filter((r: any) => {
+        // Handle both location.coordinates (requests) and latitude/longitude (shelters)
+        return (r.location?.coordinates && r.location.coordinates.length >= 2) || 
+               (r.latitude != null && r.longitude != null);
+      })
+      .map((r: any) => {
+        console.log('🗺️ [MapPage] Creating feature for:', r.id, 'coords:', r.latitude, r.longitude);
+        
+        // Handle both coordinate formats
+        let coordinates;
+        if (r.location?.coordinates) {
+          coordinates = [r.location.coordinates[0], r.location.coordinates[1]];
+        } else if (r.latitude != null && r.longitude != null) {
+          coordinates = [parseFloat(r.longitude), parseFloat(r.latitude)];
+        } else {
+          console.warn('🗺️ [MapPage] No valid coordinates for:', r.id);
+          return null;
         }
-      }));
+        
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: coordinates
+          },
+          properties: {
+            id: r.id,
+            category: r.category || r.type,
+            severity: r.severity,
+            status: r.status,
+            description: r.description,
+            address: r.address
+          }
+        };
+      })
+      .filter(f => f !== null); // Remove null features
     
     // Use demo markers if enabled, otherwise use real data
     // Apply same filters to demo markers for consistent UX
@@ -546,10 +594,19 @@ const MapPage: React.FC = () => {
     });
     const features = showDemoData ? demoFeatures : realFeatures;
     
+    console.log('🗺️ [MapPage] Final features for map:', features.length);
+    console.log('🗺️ [MapPage] showDemoData:', showDemoData);
+    console.log('🗺️ [MapPage] realFeatures count:', realFeatures.length);
+    console.log('🗺️ [MapPage] demoFeatures count:', demoFeatures.length);
+    console.log('🗺️ [MapPage] First feature:', features[0]);
+    
     const data = { type: 'FeatureCollection', features } as any;
     const src = map.current.getSource('needs') as maplibregl.GeoJSONSource;
     if (src) {
+      console.log('🗺️ [MapPage] Setting map data with', features.length, 'features');
       src.setData(data as any);
+    } else {
+      console.warn('🗺️ [MapPage] Map source "needs" not found!');
     }
     setVisibleCount(features.length);
   }, [isMapLoaded, requests, shelters, showDemoData, filters.shelter, filters.type, filters.status, filters.severity, bbox]);

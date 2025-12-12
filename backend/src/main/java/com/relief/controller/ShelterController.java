@@ -42,7 +42,8 @@ public class ShelterController {
             @Parameter(description = "Filter by status") @RequestParam(required = false) String status,
             @Parameter(description = "Search by name") @RequestParam(required = false) String search
     ) {
-        log.info("GET /shelters - page: {}, size: {}, sortBy: {}, sortDir: {}, status: {}, search: {}", 
+        log.info("🏠 ===== SHELTER API CALLED =====");
+        log.info("🏠 GET /shelters - page: {}, size: {}, sortBy: {}, sortDir: {}, status: {}, search: {}", 
                 page, size, sortBy, sortDir, status, search);
 
         Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortBy);
@@ -61,7 +62,9 @@ public class ShelterController {
             shelters = shelterService.getAllShelters(pageable);
         }
 
-        log.info("Found {} shelters", shelters.getTotalElements());
+        log.info("🏠 Found {} shelters", shelters.getTotalElements());
+        log.info("🏠 First shelter: {}", shelters.getContent().isEmpty() ? "NONE" : shelters.getContent().get(0).getName());
+        log.info("🏠 ===== RETURNING SHELTER RESPONSE =====");
         return ResponseEntity.ok(shelters);
     }
 
