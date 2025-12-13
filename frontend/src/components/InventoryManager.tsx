@@ -77,7 +77,7 @@ const InventoryManager: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Starting to fetch inventory data...');
+
       
       const [hubsData, itemsData, stockData, invStatus] = await Promise.all([
         apiService.getInventoryHubs().catch(err => {
@@ -99,40 +99,12 @@ const InventoryManager: React.FC = () => {
         })
       ]);
 
-      console.log('✅ Fetch completed:', {
-        hubs: Array.isArray(hubsData) ? hubsData.length : typeof hubsData,
-        items: Array.isArray(itemsData) ? itemsData.length : typeof itemsData,
-        stock: Array.isArray(stockData) ? stockData.length : typeof stockData
-      });
+
 
       setHubs(hubsData as InventoryHub[]);
       setItems(itemsData as ItemCatalog[]);
       
-      // Debug: Log stock data to see what we're getting
-      console.log('=== STOCK DATA DEBUG ===');
-      console.log('Stock data received:', stockData);
-      console.log('Stock data type:', typeof stockData);
-      console.log('Stock data length:', Array.isArray(stockData) ? stockData.length : 'Not an array');
-      if (Array.isArray(stockData) && stockData.length > 0) {
-        console.log('First stock item (full):', JSON.stringify(stockData[0], null, 2));
-        console.log('First stock item hub:', stockData[0]?.hub);
-        console.log('First stock item hub type:', typeof stockData[0]?.hub);
-        console.log('First stock item item:', stockData[0]?.item);
-        console.log('First stock item item type:', typeof stockData[0]?.item);
-        console.log('All stock items:', stockData.map(s => ({
-          id: s.id,
-          hasHub: !!s.hub,
-          hasItem: !!s.item,
-          hubId: s.hub?.id,
-          hubName: s.hub?.name,
-          itemId: s.item?.id,
-          itemName: s.item?.name,
-          qtyAvailable: s.qtyAvailable
-        })));
-      } else {
-        console.warn('Stock data is empty or not an array!');
-      }
-      console.log('=== END STOCK DATA DEBUG ===');
+
       
       setStock(stockData as InventoryStock[]);
       setAlerts(invStatus as any);
@@ -163,10 +135,8 @@ const InventoryManager: React.FC = () => {
   };
 
   const filteredStock = stock.filter(s => {
-    // Allow items without linked ItemCatalog; show them as 'N/A' in UI instead of hiding
+    // Filter out items without hub
     if (!s.hub) {
-      console.warn('=== STOCK FILTERED OUT - Missing Hub ===');
-      console.warn('Stock item:', s);
       return false;
     }
     
@@ -180,14 +150,7 @@ const InventoryManager: React.FC = () => {
     return matchesHub && matchesItem && matchesSearch;
   });
   
-  // Debug: Log filter results
-  console.log('=== FILTER RESULTS ===');
-  console.log('Total stock:', stock.length);
-  console.log('Filtered stock:', filteredStock.length);
-  console.log('Selected hub:', selectedHub);
-  console.log('Selected item:', selectedItem);
-  console.log('Search term:', searchTerm);
-  console.log('=== END FILTER RESULTS ===');
+
 
   const getStockAnalytics = () => {
     const totalStock = stock.reduce((sum, s) => sum + s.qtyAvailable, 0);
@@ -299,20 +262,6 @@ const InventoryManager: React.FC = () => {
 
   const analytics = getStockAnalytics();
 
-  // Debug panel - always visible to help diagnose
-  const debugInfo = {
-    stockCount: stock.length,
-    filteredCount: filteredStock.length,
-    hubsCount: hubs.length,
-    itemsCount: items.length,
-    selectedHub,
-    selectedItem,
-    searchTerm,
-    hasStockWithHub: stock.filter(s => s.hub).length,
-    hasStockWithItem: stock.filter(s => s.item).length,
-    hasStockWithBoth: stock.filter(s => s.hub && s.item).length
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -323,35 +272,6 @@ const InventoryManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Debug Panel - Remove this after fixing */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-yellow-900 mb-2">🔍 Debug Information</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-          <div><strong>Stock Count:</strong> {debugInfo.stockCount}</div>
-          <div><strong>Filtered:</strong> {debugInfo.filteredCount}</div>
-          <div><strong>Hubs:</strong> {debugInfo.hubsCount}</div>
-          <div><strong>Items:</strong> {debugInfo.itemsCount}</div>
-          <div><strong>Selected Hub:</strong> {debugInfo.selectedHub || 'None'}</div>
-          <div><strong>Selected Item:</strong> {debugInfo.selectedItem || 'None'}</div>
-          <div><strong>Stock w/ Hub:</strong> {debugInfo.hasStockWithHub}</div>
-          <div><strong>Stock w/ Item:</strong> {debugInfo.hasStockWithItem}</div>
-          <div><strong>Stock w/ Both:</strong> {debugInfo.hasStockWithBoth}</div>
-        </div>
-        <button 
-          onClick={() => {
-            console.log('=== MANUAL DEBUG TRIGGER ===');
-            console.log('Stock array:', stock);
-            console.log('Filtered stock:', filteredStock);
-            console.log('Hubs:', hubs);
-            console.log('Items:', items);
-            console.log('Debug info:', debugInfo);
-            console.log('=== END MANUAL DEBUG ===');
-          }}
-          className="mt-2 px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
-        >
-          Log to Console
-        </button>
-      </div>
 
       {/* Header */}
       <div className="bg-white shadow rounded-lg p-6">
@@ -444,11 +364,7 @@ const InventoryManager: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Hub</label>
             <select
               value={selectedHub}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                console.log('Hub filter changed:', newValue);
-                setSelectedHub(newValue);
-              }}
+              onChange={(e) => setSelectedHub(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Hubs</option>

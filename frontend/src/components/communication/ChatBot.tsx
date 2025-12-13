@@ -13,16 +13,26 @@ const ChatBot: React.FC<ChatBotProps> = ({ onEmergencyDetected, onClose }) => {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isSending, setIsSending] = useState(false); // Prevent duplicate sends
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastSentMessage = useRef<string>(''); // Track last sent message to prevent duplicates
 
   useEffect(() => {
     initializeChat();
     
-    // Add message handler
+    // Add message handler with deduplication
     const handleMessage = (message: ChatMessage) => {
-      setMessages(prev => [...prev, message]);
+      setMessages(prev => {
+        // Check if message already exists to prevent duplicates
+        const exists = prev.some(m => m.id === message.id);
+        if (exists) {
+          console.warn('Duplicate message detected, skipping:', message.id);
+          return prev;
+        }
+        return [...prev, message];
+      });
       scrollToBottom();
     };
 
@@ -55,35 +65,50 @@ const ChatBot: React.FC<ChatBotProps> = ({ onEmergencyDetected, onClose }) => {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isSending) return;
 
     const message = inputMessage.trim();
-    setInputMessage('');
-
-    // Check for emergency
-    if (chatBotService.isEmergencyMessage(message)) {
-      onEmergencyDetected?.();
-      const emergencyResponse = chatBotService.getEmergencyResponse();
-      const emergencyMessage = chatBotService.processBotResponse(emergencyResponse);
-      setMessages(prev => [...prev, emergencyMessage]);
+    
+    // Prevent duplicate sends of same message
+    if (message === lastSentMessage.current) {
+      console.warn('Duplicate message send prevented:', message);
       return;
     }
-
-    // Create user message
-    const userMessage = chatBotService.createUserMessage(message);
-    setMessages(prev => [...prev, userMessage]);
-
-    // Show typing indicator
-    setIsTyping(true);
+    
+    lastSentMessage.current = message;
+    setInputMessage('');
+    setIsSending(true);
 
     try {
-      const response = await chatBotService.sendMessage(message);
-      const botMessage = chatBotService.processBotResponse(response);
-      setMessages(prev => [...prev, botMessage]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      // Check for emergency
+      if (chatBotService.isEmergencyMessage(message)) {
+        onEmergencyDetected?.();
+        const emergencyResponse = chatBotService.getEmergencyResponse();
+        const emergencyMessage = chatBotService.processBotResponse(emergencyResponse);
+        return;
+      }
+
+      // Create user message - this will trigger message handler
+      const userMessage = chatBotService.createUserMessage(message);
+
+      // Show typing indicator
+      setIsTyping(true);
+
+      try {
+        const response = await chatBotService.sendMessage(message);
+        // Process bot response - this will trigger message handler
+        const botMessage = chatBotService.processBotResponse(response);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to send message');
+      } finally {
+        setIsTyping(false);
+      }
     } finally {
-      setIsTyping(false);
+      setIsSending(false);
+      // Clear last sent message after a delay to allow new messages
+      setTimeout(() => {
+        lastSentMessage.current = '';
+      }, 1000);
     }
   };
 
@@ -236,10 +261,10 @@ const ChatBot: React.FC<ChatBotProps> = ({ onEmergencyDetected, onClose }) => {
           />
           <button
             onClick={sendMessage}
-            disabled={!inputMessage.trim()}
+            disabled={!inputMessage.trim() || isSending}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Send
+            {isSending ? 'Sending...' : 'Send'}
           </button>
         </div>
       </div>

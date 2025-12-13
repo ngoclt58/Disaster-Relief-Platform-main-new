@@ -44,7 +44,6 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // TEMPORARY: Allow all endpoints for testing
                 .anyRequest().permitAll()
             )
             .exceptionHandling(ex -> ex

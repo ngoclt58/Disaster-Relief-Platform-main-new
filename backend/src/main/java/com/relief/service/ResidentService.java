@@ -10,6 +10,7 @@ import com.relief.repository.HouseholdRepository;
 import com.relief.repository.NeedsRequestRepository;
 import com.relief.realtime.RealtimeBroadcaster;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class ResidentService {
 
     private final HouseholdRepository householdRepository;
@@ -61,7 +63,15 @@ public class ResidentService {
             need.setGeomPoint(household.getGeomPoint());
         }
         NeedsRequest saved = needsRequestRepository.save(need);
-        broadcaster.broadcast("needs.created", saved.getId());
+        
+        // Safely broadcast without failing the request creation
+        try {
+            broadcaster.broadcast("needs.created", saved.getId());
+        } catch (Exception e) {
+            log.warn("Failed to broadcast needs.created event: {}", e.getMessage());
+            // Don't fail the request creation if broadcast fails
+        }
+        
         return saved;
     }
 

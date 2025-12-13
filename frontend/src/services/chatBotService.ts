@@ -47,6 +47,7 @@ export interface BotIntent {
 class ChatBotService {
   private currentSessionId: string | null = null;
   private messageHandlers: ((message: ChatMessage) => void)[] = [];
+  private recentMessageIds: Set<string> = new Set(); // Track recent messages to prevent duplicates
 
   /**
    * Send message to chat bot
@@ -196,6 +197,18 @@ class ChatBotService {
    * Notify message handlers
    */
   private notifyMessageHandlers(message: ChatMessage): void {
+    // Prevent duplicate notifications
+    if (this.recentMessageIds.has(message.id)) {
+      console.warn('Duplicate message notification prevented:', message.id);
+      return;
+    }
+    
+    // Add to recent messages and clean up old ones
+    this.recentMessageIds.add(message.id);
+    setTimeout(() => {
+      this.recentMessageIds.delete(message.id);
+    }, 5000); // Keep for 5 seconds
+    
     this.messageHandlers.forEach(handler => {
       try {
         handler(message);
@@ -206,11 +219,18 @@ class ChatBotService {
   }
 
   /**
+   * Generate unique message ID
+   */
+  private generateMessageId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${performance.now()}`;
+  }
+
+  /**
    * Process bot response and create message
    */
   processBotResponse(response: ChatBotResponse): ChatMessage {
     const message: ChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: this.generateMessageId(),
       sessionId: response.sessionId,
       userId: undefined,
       userName: 'ReliefBot',
@@ -229,7 +249,7 @@ class ChatBotService {
    */
   createUserMessage(message: string): ChatMessage {
     const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: this.generateMessageId(),
       sessionId: this.currentSessionId || '',
       userId: 'current_user',
       userName: 'You',

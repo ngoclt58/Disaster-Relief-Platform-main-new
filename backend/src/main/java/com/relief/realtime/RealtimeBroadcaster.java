@@ -37,14 +37,19 @@ public class RealtimeBroadcaster {
                 "ts", Instant.now().toString(),
                 "data", payload
         );
-        emitters.forEach(emitter -> {
+        
+        // Create a copy to avoid concurrent modification
+        List<SseEmitter> currentEmitters = List.copyOf(emitters);
+        
+        currentEmitters.forEach(emitter -> {
             try {
                 emitter.send(SseEmitter.event()
                         .name(type)
                         .data(event));
-            } catch (IOException e) {
-                emitter.complete();
-                emitters.remove(emitter);
+            } catch (IOException | IllegalStateException e) {
+                // Handle both IOException and IllegalStateException (already completed)
+                log.warn("Failed to send SSE event, removing emitter: {}", e.getMessage());
+                safeCompleteAndRemove(emitter);
             }
         });
     }
@@ -52,9 +57,19 @@ public class RealtimeBroadcaster {
     public void sendHeartbeat(SseEmitter emitter) {
         try {
             emitter.send(SseEmitter.event().name("heartbeat").data(Instant.now().toString()));
-        } catch (IOException e) {
-            emitter.complete();
+        } catch (IOException | IllegalStateException e) {
+            log.warn("Failed to send heartbeat, removing emitter: {}", e.getMessage());
+            safeCompleteAndRemove(emitter);
+        }
+    }
+    
+    private void safeCompleteAndRemove(SseEmitter emitter) {
+        try {
             emitters.remove(emitter);
+            emitter.complete();
+        } catch (IllegalStateException e) {
+            // Emitter already completed, just remove from list
+            log.debug("Emitter already completed: {}", e.getMessage());
         }
     }
 }
