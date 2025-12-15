@@ -54,6 +54,8 @@ const ShelterManagement: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedShelter, setSelectedShelter] = useState<Shelter | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingShelter, setEditingShelter] = useState<Shelter | null>(null);
 
   useEffect(() => {
     fetchShelters();
@@ -98,6 +100,11 @@ const ShelterManagement: React.FC = () => {
   const handleViewDetails = (shelter: Shelter) => {
     setSelectedShelter(shelter);
     setShowDetails(true);
+  };
+
+  const handleEditShelter = (shelter: Shelter) => {
+    setEditingShelter(shelter);
+    setShowEditForm(true);
   };
 
   if (loading) {
@@ -230,8 +237,9 @@ const ShelterManagement: React.FC = () => {
                 
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => navigate(`/shelters/edit/${shelter.id}`)}
+                    onClick={() => handleEditShelter(shelter)}
                     className="text-gray-600 hover:text-gray-800"
+                    title="Edit Shelter"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
@@ -289,6 +297,22 @@ const ShelterManagement: React.FC = () => {
           onClose={() => setShowAddForm(false)}
           onSuccess={() => {
             setShowAddForm(false);
+            fetchShelters();
+          }}
+        />
+      )}
+
+      {/* Edit Shelter Form Modal */}
+      {showEditForm && editingShelter && (
+        <EditShelterModal
+          shelter={editingShelter}
+          onClose={() => {
+            setShowEditForm(false);
+            setEditingShelter(null);
+          }}
+          onSuccess={() => {
+            setShowEditForm(false);
+            setEditingShelter(null);
             fetchShelters();
           }}
         />
@@ -485,26 +509,84 @@ const AddShelterModal: React.FC<{
     operatingHours: '24/7',
     managerName: '',
     managerPhone: '',
-    notes: ''
+    notes: '',
+    latitude: '',
+    longitude: ''
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
     
     try {
-      await apiService.post('/shelters', {
-        ...formData,
+      // Validate coordinates if provided
+      if (formData.latitude && (parseFloat(formData.latitude) < -90 || parseFloat(formData.latitude) > 90)) {
+        throw new Error('Latitude must be between -90 and 90');
+      }
+      if (formData.longitude && (parseFloat(formData.longitude) < -180 || parseFloat(formData.longitude) > 180)) {
+        throw new Error('Longitude must be between -180 and 180');
+      }
+
+      // Validate phone numbers if provided
+      const phoneRegex = /^[+]?[0-9\s\-\(\)]{7,20}$/;
+      if (formData.contactPhone && !phoneRegex.test(formData.contactPhone)) {
+        throw new Error('Contact phone format is invalid. Use format: +84 123 456 789');
+      }
+      if (formData.managerPhone && !phoneRegex.test(formData.managerPhone)) {
+        throw new Error('Manager phone format is invalid. Use format: +84 987 654 321');
+      }
+
+      const payload = {
+        name: formData.name,
+        description: formData.description || null,
+        address: formData.address,
         capacity: parseInt(formData.capacity),
         currentOccupancy: 0,
+        contactPhone: formData.contactPhone || null,
+        contactEmail: formData.contactEmail || null,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         status: 'ACTIVE',
         isEmergencyShelter: true,
-        facilities: ['wifi', 'kitchen'] // Default facilities
-      });
+        facilities: ['wifi', 'kitchen', 'restrooms', 'first_aid'],
+        operatingHours: formData.operatingHours || '24/7',
+        managerName: formData.managerName || null,
+        managerPhone: formData.managerPhone || null, // Fix: don't send empty string
+        notes: formData.notes || null
+      };
+
+      console.log('🏠 Creating shelter with payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await apiService.post('/shelters', payload);
+      console.log('✅ Shelter created successfully:', response);
       
       onSuccess();
-    } catch (error) {
-      console.error('Failed to create shelter:', error);
-      alert('Failed to create shelter');
+    } catch (error: any) {
+      console.error('❌ Failed to create shelter:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        status: error?.status,
+        originalError: error?.originalError,
+        response: error?.response
+      });
+      
+      let errorMessage = 'Failed to create shelter. Please check all fields.';
+      
+      if (error?.status === 400) {
+        errorMessage = 'Invalid data provided. Please check all required fields and formats.';
+      } else if (error?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -543,6 +625,9 @@ const AddShelterModal: React.FC<{
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={2}
               />
+              <p className="mt-1 text-xs text-gray-500">
+                💡 Tip: Add coordinates below for map display
+              </p>
             </div>
 
             <div>
@@ -561,10 +646,12 @@ const AddShelterModal: React.FC<{
               <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
               <input
                 type="tel"
+                placeholder="e.g., +84 123 456 789"
                 value={formData.contactPhone}
                 onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              <p className="mt-1 text-xs text-gray-500">Optional. Format: +84 123 456 789</p>
             </div>
 
             <div>
@@ -581,10 +668,57 @@ const AddShelterModal: React.FC<{
               <label className="block text-sm font-medium text-gray-700">Manager Name</label>
               <input
                 type="text"
+                placeholder="e.g., John Doe"
                 value={formData.managerName}
                 onChange={(e) => setFormData({...formData, managerName: e.target.value})}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Manager Phone</label>
+              <input
+                type="tel"
+                placeholder="e.g., +84 987 654 321"
+                value={formData.managerPhone}
+                onChange={(e) => setFormData({...formData, managerPhone: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional. Format: +84 987 654 321</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📍 Location Coordinates (Optional)</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., 21.0285"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., 105.8542"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                💡 Add coordinates to display shelter on map. Use Google Maps to find exact coordinates.
+              </p>
+              <div className="mt-2 text-xs text-blue-600">
+                <strong>Hanoi examples:</strong> Lat: 21.0285, Lng: 105.8542 | Lat: 21.0245, Lng: 105.8412
+              </div>
             </div>
 
             <div>
@@ -597,19 +731,321 @@ const AddShelterModal: React.FC<{
               />
             </div>
 
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Error creating shelter</h3>
+                    <div className="mt-2 text-sm text-red-700">{submitError}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
               >
-                Create Shelter
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <span>Create Shelter</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Edit Shelter Modal Component
+const EditShelterModal: React.FC<{
+  shelter: Shelter;
+  onClose: () => void;
+  onSuccess: () => void;
+}> = ({ shelter, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    name: shelter.name || '',
+    description: shelter.description || '',
+    address: shelter.address || '',
+    capacity: shelter.capacity?.toString() || '',
+    contactPhone: shelter.contactPhone || '',
+    contactEmail: shelter.contactEmail || '',
+    operatingHours: shelter.operatingHours || '24/7',
+    managerName: shelter.managerName || '',
+    managerPhone: shelter.managerPhone || '',
+    notes: shelter.notes || '',
+    latitude: shelter.latitude?.toString() || '',
+    longitude: shelter.longitude?.toString() || ''
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
+    
+    try {
+      // Validate coordinates if provided
+      if (formData.latitude && (parseFloat(formData.latitude) < -90 || parseFloat(formData.latitude) > 90)) {
+        throw new Error('Latitude must be between -90 and 90');
+      }
+      if (formData.longitude && (parseFloat(formData.longitude) < -180 || parseFloat(formData.longitude) > 180)) {
+        throw new Error('Longitude must be between -180 and 180');
+      }
+
+      // Validate phone numbers if provided
+      const phoneRegex = /^[+]?[0-9\s\-\(\)]{7,20}$/;
+      if (formData.contactPhone && !phoneRegex.test(formData.contactPhone)) {
+        throw new Error('Contact phone format is invalid. Use format: +84 123 456 789');
+      }
+      if (formData.managerPhone && !phoneRegex.test(formData.managerPhone)) {
+        throw new Error('Manager phone format is invalid. Use format: +84 987 654 321');
+      }
+
+      const payload = {
+        name: formData.name,
+        description: formData.description || null,
+        address: formData.address,
+        capacity: parseInt(formData.capacity),
+        currentOccupancy: shelter.currentOccupancy, // Keep existing occupancy
+        contactPhone: formData.contactPhone || null,
+        contactEmail: formData.contactEmail || null,
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+        status: shelter.status, // Keep existing status
+        isEmergencyShelter: shelter.isEmergencyShelter, // Keep existing value
+        facilities: shelter.facilities || ['wifi', 'kitchen', 'restrooms', 'first_aid'],
+        operatingHours: formData.operatingHours || '24/7',
+        managerName: formData.managerName || null,
+        managerPhone: formData.managerPhone || null,
+        notes: formData.notes || null
+      };
+
+      console.log('🏠 Updating shelter with payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await apiService.put(`/shelters/${shelter.id}`, payload);
+      console.log('✅ Shelter updated successfully:', response);
+      
+      onSuccess();
+    } catch (error: any) {
+      console.error('❌ Failed to update shelter:', error);
+      console.error('❌ Error details:', {
+        message: error?.message,
+        status: error?.status,
+        originalError: error?.originalError,
+        response: error?.response
+      });
+      
+      let errorMessage = 'Failed to update shelter. Please check all fields.';
+      
+      if (error?.status === 400) {
+        errorMessage = 'Invalid data provided. Please check all required fields and formats.';
+      } else if (error?.status === 500) {
+        errorMessage = 'Server error. Please try again later.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setSubmitError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900">Edit Shelter</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Name *</label>
+              <input
+                type="text"
+                required
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Address *</label>
+              <textarea
+                required
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={2}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                💡 Tip: Add coordinates below for map display
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Capacity *</label>
+              <input
+                type="number"
+                required
+                min="1"
+                value={formData.capacity}
+                onChange={(e) => setFormData({...formData, capacity: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Contact Phone</label>
+              <input
+                type="tel"
+                placeholder="e.g., +84 123 456 789"
+                value={formData.contactPhone}
+                onChange={(e) => setFormData({...formData, contactPhone: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional. Format: +84 123 456 789</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Contact Email</label>
+              <input
+                type="email"
+                value={formData.contactEmail}
+                onChange={(e) => setFormData({...formData, contactEmail: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Manager Name</label>
+              <input
+                type="text"
+                placeholder="e.g., John Doe"
+                value={formData.managerName}
+                onChange={(e) => setFormData({...formData, managerName: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Manager Phone</label>
+              <input
+                type="tel"
+                placeholder="e.g., +84 987 654 321"
+                value={formData.managerPhone}
+                onChange={(e) => setFormData({...formData, managerPhone: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500">Optional. Format: +84 987 654 321</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📍 Location Coordinates (Optional)</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., 21.0285"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="e.g., 105.8542"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                💡 Add coordinates to display shelter on map. Use Google Maps to find exact coordinates.
+              </p>
+              <div className="mt-2 text-xs text-blue-600">
+                <strong>Hanoi examples:</strong> Lat: 21.0285, Lng: 105.8542 | Lat: 21.0245, Lng: 105.8412
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Notes</label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+              />
+            </div>
+
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-red-400" />
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">Error updating shelter</h3>
+                    <div className="mt-2 text-sm text-red-700">{submitError}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <span>Update Shelter</span>
+                )}
               </button>
             </div>
           </form>
